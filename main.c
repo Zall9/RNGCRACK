@@ -172,6 +172,8 @@ int main(int argc, char** argv)
             printf("LA FONCTION LCG_crack_ac DOIT RENVOYER 1 ou 0 (valeur reçue : %d).\n", r);
             return 1;
         }
+        LCG_init(a, c, modulus);
+        LCG_show();
         r = LCG_crack_check(argc - optind, table, modulus, a, c);
         if (r == 0) {
             printf("crack check unsuccessful..\n");
@@ -181,10 +183,7 @@ int main(int argc, char** argv)
             printf("LA FONCTION LCG_crack_check DOIT RENVOYER 1 ou 0 (valeur reçue : %d).\n", r);
             return 1;
         }
-
         printf("crack successful:\n");
-        LCG_init(a, c, modulus);
-        LCG_show();
         return 0;
     } else if (type_prng == LFSR && action == CRACK) {
         char* X = argv[optind];
@@ -206,11 +205,11 @@ int main(int argc, char** argv)
             LFSR_init(taps);
             LFSR_show();
             return 0;
-        } else if (-1 == r) {
+        } else if (0 == r) {
             printf("crack unsuccessful..\n");
             return 1;
         } else {
-            printf("LA FONCTION LCG_crack DOIT RENVOYER 1 ou -1 (valeur reçue : %d).\n", r);
+            printf("LA FONCTION LCG_crack DOIT RENVOYER 1 ou 0 (valeur reçue : %d).\n", r);
             return 1;
         }
     }

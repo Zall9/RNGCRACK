@@ -16,7 +16,7 @@ int64_t invert_mod(int64_t a, int64_t m)
     int64_t x = 0;
     int64_t y = 0;
     gcd_bezout(&g, &x, &y, a, m);
-    return (g == 1) ? mod(x, m) : 0;
+    return (g == 1) ? mod(x, m) : 0; 
 }
 
 /*
@@ -29,50 +29,110 @@ int64_t invert_mod(int64_t a, int64_t m)
  */
 int LCG_crack_ac(int nb, const int64_t *X, int64_t m, int64_t *a, int64_t *c)
 {
-    // c = X22-X3X1/X2-X1 (x2-X1 !=0);
-    // a = (x2-(X22-X3X1/X2-X1))/x1 (x1 != 0);
-    for (int i = 0; i < nb; i++)
+    //On trouve les lignes suivantes après résolution à la main.
+    // c = (X2-X1*(X3-X2))/(X2-X1) (x2-X1 !=0);
+    // a = (X3-X2)/X2-X1 (X2-X1!=0);
+    for (int i = 0; i < nb - 2; i++)
     {
-        if (invert_mod(X[i] - X[i + 1], m) != 0)
+        int invert = invert_mod(X[i + 1] - X[i], m);
+        if (invert != 0)
         {
-            *a = mod(((X[i + 1]) - (X[i + 2])) / (X - (X + 1)), m);
-            *c = mod(((X[i]) * (X[i + 2]) - (X[i + 1]) * (X[i + 1])) / (X[i] - (X[i + 1])), m);
+            *c = mod(X[i + 1] - X[i] * (X[i + 2] - X[i + 1]) * invert, m);
+            *a = mod(((X[i + 2] - X[i + 1]) * invert), m);
             return 1;
         }
     }
     return 0;
 }
-// 
 
-// Lorsque le module m du générateur congruentiel est inconnu, il faut faire un peu plus de calculs:
-//     si x1, ... xn sont des nombres consécutifs donnés par le générateur, ils vérifient xk = a xk-1 + c (mod m).
-//     Les différences successives yk = (xk+1 - xk) vérifient yk+1 = a yk (mod m) et donc yk+1 = a2 yk-1 (mod m).
-//     On peut déduire de tout ça que yk+1 yk-1 - yk2 = 0 (mod m)
-//     Autrement dit, chacun des nombres zk = yk+1 yk-1 - yk2 est un multiple de m.
-//     Le nombre m est donc un diviseur commun de tous les nombres zk. Le nombre m est en fait le pgcd de tous les nombres zk avec une très forte probabilité.
 
-int iMoinsSuivant(int64_t*X,int i ){
-    return X[i]+X[i-1]; 
+/*
+*Cette fonction permets de rendre plus lisible la fonction LCG_crack_m
+* elle renvoie juste la différence entre Xi+1 et Xi.
+*/
+int iMoinsSuivant(int64_t const *X, int i)
+{
+    return X[i + 1] - X[i];
 }
-int LCG_crack_m(int nb, const int64_t *X, int64_t *m) { 
-    if (nb>5){
-        *m= X[1]-X[0]* X[i]
-        return 1;
+
+int LCG_crack_m(int nb, const int64_t *X, int64_t *m)
+{
+    int64_t a, c;
+    if (nb < 5)
+    {
+        printf("\t # pas assez de valeur pour trouver m, le test échoue !\n");
+        return 0;
     }
-    return 0;
-     }
+    else
+    {
+        printf("\t # OK, on peut calculer m !\n");
+        *m = iMoinsSuivant(X, 2) * iMoinsSuivant(X, 0) - iMoinsSuivant(X, 1) * iMoinsSuivant(X, 1);
+        int64_t tmp, tmp2;
+        for (int i = 0; i < nb - 3; i++)
+        {
+            gcd_bezout(m, &tmp, &tmp2, *m, iMoinsSuivant(X, i + 2) * iMoinsSuivant(X, i) - iMoinsSuivant(X, i + 1) * iMoinsSuivant(X, i + 1));
+        }
+        LCG_crack_ac(nb, X, *m, &a, &c);
+        if (LCG_crack_check(nb, X, *m, a, c))
+        {
+            return 1;
+        }
+        else
+        {
+            printf("\t# pas de solution pour générer ces valeurs\n");
+            return 0;
+        }
+    }
+}
 
 int LCG_crack_check(int nb, const int64_t *X, int64_t m, int64_t a, int64_t c)
 {
-
-    return -1;
+    // On vérifie qu'on peut générer toutes les valeurs de X avec les valeurs trouvées.
+    for (int i = 0; i < nb - 1; i++)
+    {
+        // Si une valeur ne peut pas être générée alors on return 0
+        if (mod(a * X[i] + c, m) != X[i + 1])
+            return 0;
+    }
+    return 1;
 }
 
 /*
- * diagonalise une matrice booléenne de taille n x n+1
+ * diagonalise une matrice sans changer la derniere colonne.
+ *Le but de l'algorithme est de regarder si à l'indice i de la ligne i il y'a un 1.
+ *Si oui on fait le xor avec les autres colonnes afin de supprimer les autres 1.
+ *Cela revient a diagonaliser la matrice.
  */
-int gauss(word *M, int nb_lignes) { return -1; }
 
+int gauss(word *M, int nb_lignes)
+{
+    for (int i = 0; i < nb_lignes; i++)
+    {
+        if (!BIT(nb_lignes - i, M[i]))
+        {
+            for (int j = i; j < nb_lignes; j++)
+            {
+                if (BIT(nb_lignes - i, M[j])) // si on trouve un 1 on le remonte dans la diagonal.
+                {
+                    M[i] ^=  M[j];
+                    break;
+                }
+                else if (j == nb_lignes - 1) // Si on ne trouve pas de 1 dans la colonne.
+                {
+                    return 0;
+                }
+            }
+        }
+        for (int j = 0; j < nb_lignes; j++)
+        {
+            if ((j != i) && BIT(nb_lignes - i, M[j]))
+            {
+                M[j] ^= M[i];
+            }
+        }
+    }
+    return 1;
+}
 /*
  * craque un générateur linéaire "fibonacci" en cherchant les "taps" qui
  * permettent de regénérer la suite.
@@ -81,4 +141,4 @@ int gauss(word *M, int nb_lignes) { return -1; }
  * La fonction renvoie 1 si les taps permettent de regénérer la suite, et 0
  * sinon.
  */
-int LFSR_crack(int nb, const int *X, word *taps) { return -1; }
+int LFSR_crack(int nb, const int *X, word *taps) { return 1; }
