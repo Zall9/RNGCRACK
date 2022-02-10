@@ -141,4 +141,22 @@ int gauss(word *M, int nb_lignes)
  * La fonction renvoie 1 si les taps permettent de regénérer la suite, et 0
  * sinon.
  */
-int LFSR_crack(int nb, const int *X, word *taps) { return 1; }
+int LFSR_crack(int nb, const int *X, word *taps){
+    word* diagX = (word*)X;
+    int bit;
+    for(int taille = 1; taille<=nb/2; taille++)
+    {
+        /
+        if (gauss(diagX,taille))
+        {
+            for(int j = taille; j > 0; j--)
+            {
+                bit = BIT(taille,diagX[j]);   
+                *taps ^= bit<<j;
+            }
+            return 1;
+        }
+        
+    }
+    return 0;
+}
